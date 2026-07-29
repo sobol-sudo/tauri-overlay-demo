@@ -1,0 +1,25 @@
+/* The window is transparent — only the panel itself paints a background,
+   everything else must let through whatever sits under the app. */
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+  background: transparent;
+  overflow: hidden;
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+  /* An overlay is not a document: text selection only gets in the way of dragging. */
+  user-select: none;
+  cursor: default;
+}
+
+input {
+  user-select: text;
+}
