@@ -91,6 +91,16 @@ fn toggle_visibility(app: &AppHandle) -> tauri::Result<()> {
     if window.is_visible()? {
         window.hide()?;
     } else {
+        // Click-through is a one-way trap otherwise: a window that ignores the
+        // cursor cannot be clicked to turn it back off. Summoning the overlay
+        // means you want to interact with it, so the mode is dropped on show.
+        let state = app.state::<OverlayState>();
+        let was_click_through = state.0.lock().unwrap().click_through;
+        if was_click_through {
+            window.set_ignore_cursor_events(false)?;
+            state.0.lock().unwrap().click_through = false;
+        }
+
         window.show()?;
         window.set_focus()?;
     }

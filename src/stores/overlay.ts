@@ -64,20 +64,30 @@ export const useOverlayStore = defineStore('overlay', {
   }),
 
   actions: {
+    /** The core is the source of truth for overlay flags; the UI mirrors it. */
+    async syncStatus() {
+      const status = await invoke<OverlayStatus>('overlay_status');
+      this.platform = status.platform;
+      this.toggleShortcut = status.toggleShortcut;
+      this.clickThrough = status.clickThrough;
+      this.contentProtected = status.contentProtected;
+    },
+
     async init() {
       // The transport must not depend on whether the core answered: these are
       // separate subsystems, and one failing is no reason to leave the user
       // without the other.
       try {
-        const status = await invoke<OverlayStatus>('overlay_status');
-        this.platform = status.platform;
-        this.toggleShortcut = status.toggleShortcut;
-        this.clickThrough = status.clickThrough;
-        this.contentProtected = status.contentProtected;
+        await this.syncStatus();
 
         // An event from the core: the shortcut fired without the UI asking.
-        await listen<boolean>('overlay://visibility', (event) => {
+        // The core may also have changed flags on its own — showing the overlay
+        // drops click-through — so the UI resyncs instead of guessing.
+        await listen<boolean>('overlay://visibility', async (event) => {
           this.visible = event.payload;
+          if (event.payload) {
+            await this.syncStatus();
+          }
         });
       } catch (error) {
         console.warn('overlay core unavailable', error);

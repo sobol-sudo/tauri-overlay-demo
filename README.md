@@ -73,7 +73,9 @@ status bar switches to `websocket`.
   `NSWindowSharingNone` on macOS, `WDA_EXCLUDEFROMCAPTURE` on Windows. A person sees
   the window; screen sharing and recording do not.
 - **`set_click_through`** lets clicks pass through. The overlay floats above
-  everything, and while it captures the cursor you cannot work underneath it.
+  everything, and while it captures the cursor you cannot work underneath it. The
+  mode is dropped whenever the overlay is summoned again — otherwise it is a one-way
+  trap, since a window that ignores the cursor cannot be clicked to switch it off.
 - **The `overlay://visibility` event** is a core-to-UI push — the second direction of
   IPC: not a reply to a frontend request, but a message the native side initiates.
 - **A tray icon and a close handler** give the app a normal lifecycle. `CloseRequested`
