@@ -89,6 +89,10 @@ export const useOverlayStore = defineStore('overlay', {
             await this.syncStatus();
           }
         });
+
+        // Flags can also change without the UI: the tray toggles click-through
+        // precisely when the window is unclickable and the buttons are useless.
+        await listen('overlay://flags', () => this.syncStatus());
       } catch (error) {
         console.warn('overlay core unavailable', error);
       }
@@ -193,9 +197,17 @@ export const useOverlayStore = defineStore('overlay', {
     },
 
     async toggleClickThrough() {
-      const next = !this.clickThrough;
-      await invoke('set_click_through', { enabled: next });
-      this.clickThrough = next;
+      // The core emits overlay://flags and the listener resyncs — the UI does
+      // not assume the write succeeded.
+      await invoke('set_click_through', { enabled: !this.clickThrough });
+    },
+
+    async hide() {
+      await invoke('hide_overlay');
+    },
+
+    async quit() {
+      await invoke('quit_app');
     },
 
     async toggleContentProtection() {

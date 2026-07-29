@@ -20,9 +20,15 @@ function submit() {
 }
 
 function startDrag(event: MouseEvent) {
-  if (event.buttons === 1) {
-    getCurrentWindow().startDragging();
+  if (event.buttons !== 1) {
+    return;
   }
+  // The window controls sit inside the drag strip: without this they would be
+  // swallowed by the drag and never fire a click.
+  if ((event.target as HTMLElement).closest('button')) {
+    return;
+  }
+  getCurrentWindow().startDragging();
 }
 </script>
 
@@ -33,6 +39,10 @@ function startDrag(event: MouseEvent) {
       <span class="bar__label">{{ statusLabel }}</span>
       <span class="bar__spacer" />
       <kbd v-if="store.toggleShortcut">{{ store.toggleShortcut }}</kbd>
+      <!-- A frameless window has no title bar, so hide and quit need controls
+           of their own — otherwise the only way out is a keyboard shortcut. -->
+      <button class="win" title="Hide" @click="store.hide()">–</button>
+      <button class="win win--close" title="Quit" @click="store.quit()">×</button>
     </header>
 
     <form class="ask" @submit.prevent="submit">
@@ -124,6 +134,27 @@ function startDrag(event: MouseEvent) {
 }
 .dot.connecting {
   background: #f0b232;
+}
+
+.win {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.65);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+.win:hover {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+}
+.win--close:hover {
+  background: #e5484d;
 }
 
 kbd {

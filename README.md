@@ -35,8 +35,11 @@ The window is frameless, so it has no close button of its own. Instead:
 | --- | --- |
 | `Cmd/Ctrl+Shift+Space` | show / hide the overlay, from anywhere |
 | Tray icon → **Show / Hide** | the same, without the shortcut |
+| **–** button in the panel | hides the overlay |
+| **×** button in the panel | quits |
 | `Cmd+W` | hides the overlay, does not quit |
 | Tray icon → **Quit**, or `Cmd+Q` | quits for good |
+| Tray icon → **Click-through** | toggles the mode from outside the window |
 
 Closing an overlay puts it away rather than ending the session — the shortcut is
 expected to bring it straight back. Quitting stays explicit, which is why the tray
@@ -73,9 +76,12 @@ status bar switches to `websocket`.
   `NSWindowSharingNone` on macOS, `WDA_EXCLUDEFROMCAPTURE` on Windows. A person sees
   the window; screen sharing and recording do not.
 - **`set_click_through`** lets clicks pass through. The overlay floats above
-  everything, and while it captures the cursor you cannot work underneath it. The
-  mode is dropped whenever the overlay is summoned again — otherwise it is a one-way
-  trap, since a window that ignores the cursor cannot be clicked to switch it off.
+  everything, and while it captures the cursor you cannot work underneath it. A
+  window that ignores the cursor cannot be clicked to switch the mode back off, so
+  the way out never depends on the window: the tray carries its own toggle, and
+  summoning the overlay drops the mode on the way in. Every path goes through one
+  function, which also updates the tray checkmark and notifies the UI — a second
+  writer is how a checkbox ends up disagreeing with the window it describes.
 - **The `overlay://visibility` event** is a core-to-UI push — the second direction of
   IPC: not a reply to a frontend request, but a message the native side initiates.
 - **A tray icon and a close handler** give the app a normal lifecycle. `CloseRequested`
