@@ -30,10 +30,24 @@ let client: StreamClient | null = null;
 
 /** Batched chunks: the DOM is touched once per frame, not once per token. */
 let pending = '';
-let flushHandle: number | null = null;
+let flushRaf: number | null = null;
+let flushTimer: ReturnType<typeof setTimeout> | null = null;
 let askStartedAt = 0;
 let localTimer: ReturnType<typeof setTimeout> | null = null;
 
+/** Upper bound on latency when there are no frames and a timer drains the batch. */
+const FLUSH_FALLBACK_MS = 60;
+
+function clearFlushHandles() {
+  if (flushRaf !== null) {
+    cancelAnimationFrame(flushRaf);
+    flushRaf = null;
+  }
+  if (flushTimer !== null) {
+    clearTimeout(flushTimer);
+    flushTimer = null;
+  }
+}
 
 export const useOverlayStore = defineStore('overlay', {
   state: (): State => ({
@@ -116,16 +130,24 @@ export const useOverlayStore = defineStore('overlay', {
       }
 
       pending += chunk;
-      if (flushHandle !== null) {
+      if (flushRaf !== null || flushTimer !== null) {
         return;
       }
-      flushHandle = requestAnimationFrame(() => {
-        flushHandle = null;
+
+      // The frame is the primary trigger, but requestAnimationFrame does not
+      // fire while the window is hidden — and an overlay gets hidden by the
+      // shortcut mid-generation. Without the timer as a backstop, the text
+      // would freeze until the stream ends.
+      const run = () => {
+        clearFlushHandles();
         this.flush();
-      });
+      };
+      flushRaf = requestAnimationFrame(run);
+      flushTimer = setTimeout(run, FLUSH_FALLBACK_MS);
     },
 
     flush() {
+      clearFlushHandles();
       if (!pending) {
         return;
       }
