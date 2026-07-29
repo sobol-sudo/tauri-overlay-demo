@@ -7,7 +7,11 @@
 use std::sync::Mutex;
 
 use serde::Serialize;
-use tauri::{AppHandle, Emitter, Manager, State, WebviewWindow};
+use tauri::{
+    menu::{Menu, MenuItem, PredefinedMenuItem},
+    tray::TrayIconBuilder,
+    AppHandle, Emitter, Manager, State, WebviewWindow, WindowEvent,
+};
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, ShortcutState};
 
 const TOGGLE_SHORTCUT: &str = "CmdOrCtrl+Shift+Space";
@@ -97,6 +101,29 @@ fn toggle_visibility(app: &AppHandle) -> tauri::Result<()> {
     Ok(())
 }
 
+/// The window is frameless, so it has no close button of its own and the tray is
+/// the only always-reachable way to bring the overlay back or quit for good.
+fn build_tray(app: &AppHandle) -> tauri::Result<()> {
+    let toggle = MenuItem::with_id(app, "toggle", "Show / Hide", true, Some(TOGGLE_SHORTCUT))?;
+    let quit = PredefinedMenuItem::quit(app, Some("Quit Overlay Demo"))?;
+    let menu = Menu::with_items(app, &[&toggle, &quit])?;
+
+    TrayIconBuilder::with_id("main")
+        .icon(app.default_window_icon().unwrap().clone())
+        .icon_as_template(true)
+        .tooltip("Overlay Demo")
+        .menu(&menu)
+        .show_menu_on_left_click(true)
+        .on_menu_event(|app, event| {
+            if event.id() == "toggle" {
+                let _ = toggle_visibility(app);
+            }
+        })
+        .build(app)?;
+
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -120,8 +147,19 @@ pub fn run() {
             overlay_status,
             toggle_overlay
         ])
+        .on_window_event(|window, event| {
+            // Closing an overlay should put it away, not end the session — the
+            // shortcut and the tray are expected to bring it straight back.
+            // Quitting stays explicit: the tray menu or Cmd+Q.
+            if let WindowEvent::CloseRequested { api, .. } = event {
+                api.prevent_close();
+                let _ = window.hide();
+                let _ = window.app_handle().emit("overlay://visibility", false);
+            }
+        })
         .setup(|app| {
             app.global_shortcut().register(TOGGLE_SHORTCUT)?;
+            build_tray(app.handle())?;
             Ok(())
         })
         .run(tauri::generate_context!())

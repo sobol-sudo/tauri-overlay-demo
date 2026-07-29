@@ -9,13 +9,39 @@ pushed in Tauri 2 — and what breaks along the way.
 
 ## Running it
 
+Build a real application bundle and launch it like anything else — no terminal
+attached:
+
 ```bash
 pnpm install
+pnpm tauri build
+open "src-tauri/target/release/bundle/macos/Overlay Demo.app"
+```
+
+Or run it in development mode with hot reload:
+
+```bash
 pnpm tauri dev
 ```
 
 The first build fetches and compiles the Rust dependencies, which takes a few
 minutes. After that it is incremental and fast.
+
+### Lifecycle
+
+The window is frameless, so it has no close button of its own. Instead:
+
+| Action | Result |
+| --- | --- |
+| `Cmd/Ctrl+Shift+Space` | show / hide the overlay, from anywhere |
+| Tray icon → **Show / Hide** | the same, without the shortcut |
+| `Cmd+W` | hides the overlay, does not quit |
+| Tray icon → **Quit**, or `Cmd+Q` | quits for good |
+
+Closing an overlay puts it away rather than ending the session — the shortcut is
+expected to bring it straight back. Quitting stays explicit, which is why the tray
+icon exists: it is the one control that is always reachable, even when the window is
+hidden.
 
 In a second terminal you can start the mock streaming backend:
 
@@ -50,6 +76,9 @@ status bar switches to `websocket`.
   everything, and while it captures the cursor you cannot work underneath it.
 - **The `overlay://visibility` event** is a core-to-UI push — the second direction of
   IPC: not a reply to a frontend request, but a message the native side initiates.
+- **A tray icon and a close handler** give the app a normal lifecycle. `CloseRequested`
+  is intercepted and turned into a hide, so a frameless window with no close button
+  cannot strand the user; quitting is left to the tray menu and `Cmd+Q`.
 
 ### The frontend
 
