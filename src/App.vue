@@ -76,12 +76,23 @@ function startDrag(event: MouseEvent) {
       >
         hidden from capture
       </button>
+      <!-- The shortcut is shown on the chip, not tucked away in the tray: once
+           the mode is on, this button is the one thing you can no longer press,
+           so the way out has to be readable before you turn it on. -->
       <button
         class="chip"
         :class="{ 'chip--on': store.clickThrough }"
+        :title="
+          store.clickThroughShortcut
+            ? `Toggle click-through (${store.clickThroughShortcut})`
+            : 'Toggle click-through'
+        "
         @click="store.toggleClickThrough()"
       >
         click-through
+        <span v-if="store.clickThroughShortcut" class="chip__key">
+          {{ store.clickThroughShortcut }}
+        </span>
       </button>
       <span class="meta__stats">
         <template v-if="store.ttft !== null">TTFT {{ store.ttft }} ms</template>
@@ -247,6 +258,11 @@ kbd {
   border-color: rgba(77, 124, 254, 0.7);
   background: rgba(77, 124, 254, 0.18);
   color: #cdd9ff;
+}
+.chip__key {
+  margin-left: 5px;
+  opacity: 0.65;
+  font-size: 10px;
 }
 .meta__stats {
   margin-left: auto;

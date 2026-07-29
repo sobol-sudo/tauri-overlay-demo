@@ -9,6 +9,7 @@ const WS_URL = 'ws://127.0.0.1:8787';
 type OverlayStatus = {
   platform: string;
   toggleShortcut: string;
+  clickThroughShortcut: string;
   clickThrough: boolean;
   contentProtected: boolean;
 };
@@ -21,6 +22,7 @@ type State = {
   ttft: number | null;
   platform: string;
   toggleShortcut: string;
+  clickThroughShortcut: string;
   clickThrough: boolean;
   contentProtected: boolean;
   visible: boolean;
@@ -58,6 +60,7 @@ export const useOverlayStore = defineStore('overlay', {
     ttft: null,
     platform: '',
     toggleShortcut: '',
+    clickThroughShortcut: '',
     clickThrough: false,
     contentProtected: false,
     visible: true,
@@ -69,6 +72,7 @@ export const useOverlayStore = defineStore('overlay', {
       const status = await invoke<OverlayStatus>('overlay_status');
       this.platform = status.platform;
       this.toggleShortcut = status.toggleShortcut;
+      this.clickThroughShortcut = status.clickThroughShortcut;
       this.clickThrough = status.clickThrough;
       this.contentProtected = status.contentProtected;
     },

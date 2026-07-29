@@ -15,6 +15,20 @@ use tauri::{
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, ShortcutState};
 
 const TOGGLE_SHORTCUT: &str = "CmdOrCtrl+Shift+Space";
+const CLICK_THROUGH_SHORTCUT: &str = "CmdOrCtrl+Shift+X";
+
+/// Accelerators are written in Tauri's syntax, which is not what anyone wants to
+/// read on screen.
+fn pretty(accelerator: &str) -> String {
+    if cfg!(target_os = "macos") {
+        accelerator
+            .replace("CmdOrCtrl", "⌘")
+            .replace("Shift", "⇧")
+            .replace('+', "")
+    } else {
+        accelerator.replace("CmdOrCtrl", "Ctrl")
+    }
+}
 
 /// The core owns overlay state, not the frontend: the shortcut can fire while
 /// the window is hidden and no JavaScript is alive to handle it.
@@ -36,7 +50,8 @@ struct TrayItems(Mutex<Option<CheckMenuItem<Wry>>>);
 #[serde(rename_all = "camelCase")]
 struct OverlayStatus {
     platform: &'static str,
-    toggle_shortcut: &'static str,
+    toggle_shortcut: String,
+    click_through_shortcut: String,
     click_through: bool,
     content_protected: bool,
 }
@@ -87,7 +102,8 @@ fn overlay_status(state: State<'_, OverlayState>) -> OverlayStatus {
     let flags = *state.0.lock().unwrap();
     OverlayStatus {
         platform: std::env::consts::OS,
-        toggle_shortcut: TOGGLE_SHORTCUT,
+        toggle_shortcut: pretty(TOGGLE_SHORTCUT),
+        click_through_shortcut: pretty(CLICK_THROUGH_SHORTCUT),
         click_through: flags.click_through,
         content_protected: flags.content_protected,
     }
@@ -150,7 +166,7 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
         "Click-through",
         true,
         false,
-        None::<&str>,
+        Some(CLICK_THROUGH_SHORTCUT),
     )?;
     let separator = PredefinedMenuItem::separator(app)?;
     let quit = PredefinedMenuItem::quit(app, Some("Quit Overlay Demo"))?;
@@ -190,11 +206,22 @@ pub fn run() {
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(|app, shortcut, event| {
-                    let is_toggle =
-                        shortcut.mods.contains(Modifiers::SHIFT) && shortcut.key == Code::Space;
+                    if event.state() != ShortcutState::Pressed
+                        || !shortcut.mods.contains(Modifiers::SHIFT)
+                    {
+                        return;
+                    }
 
-                    if is_toggle && event.state() == ShortcutState::Pressed {
-                        let _ = toggle_visibility(app);
+                    match shortcut.key {
+                        Code::Space => {
+                            let _ = toggle_visibility(app);
+                        }
+                        Code::KeyX => {
+                            let enabled =
+                                app.state::<OverlayState>().0.lock().unwrap().click_through;
+                            let _ = apply_click_through(app, !enabled);
+                        }
+                        _ => {}
                     }
                 })
                 .build(),
@@ -219,7 +246,13 @@ pub fn run() {
             }
         })
         .setup(|app| {
-            app.global_shortcut().register(TOGGLE_SHORTCUT)?;
+            // A global shortcut can be taken by another app, and that is no
+            // reason to refuse to start — the tray covers both actions anyway.
+            for accelerator in [TOGGLE_SHORTCUT, CLICK_THROUGH_SHORTCUT] {
+                if let Err(error) = app.global_shortcut().register(accelerator) {
+                    eprintln!("could not register {accelerator}: {error}");
+                }
+            }
             build_tray(app.handle())?;
             Ok(())
         })
